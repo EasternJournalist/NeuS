@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 from shutil import copyfile
 from icecream import ic
-from tqdm import tqdm
+from tqdm import tqdm, trange
 from pyhocon import ConfigFactory
 from models.dataset import Dataset
 from models.fields import RenderingNetwork, SDFNetwork, SingleVarianceNetwork, NeRF
@@ -343,13 +343,14 @@ class Runner:
 
     def interpolate_view(self, img_idx_0, img_idx_1):
         images = []
-        n_frames = 60
+        n_frames = 1
         for i in range(n_frames):
             print(i)
             images.append(self.render_novel_image(img_idx_0,
                                                   img_idx_1,
                                                   np.sin(((i / n_frames) - 0.5) * np.pi) * 0.5 + 0.5,
-                          resolution_level=4))
+                          resolution_level=1))
+
         for i in range(n_frames):
             images.append(images[n_frames - i - 1])
 
@@ -365,6 +366,12 @@ class Runner:
             writer.write(image)
 
         writer.release()
+
+    def render_all_view(self, resolution_level=1):
+        os.makedirs(os.path.join(self.base_exp_dir, 'render'), exist_ok=True)
+        for idx in trange(self.dataset.n_images):
+            image = self.render_novel_image(idx, idx, 0.5, resolution_level=resolution_level)
+            cv.imwrite(os.path.join(self.base_exp_dir, 'render', '{:0>8d}_{}.png'.format(self.iter_step, idx)), image)
 
 
 if __name__ == '__main__':
@@ -397,3 +404,5 @@ if __name__ == '__main__':
         img_idx_0 = int(img_idx_0)
         img_idx_1 = int(img_idx_1)
         runner.interpolate_view(img_idx_0, img_idx_1)
+    elif args.mode == 'render_all_view':
+        runner.render_all_view()
